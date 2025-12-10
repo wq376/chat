@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>なかつるきめえ</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f0f2f5; }
+        h2 { text-align: center; color: #333; }
+        
+        /* チャットエリア */
+        #chat-area {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            background: white;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        /* メッセージのスタイル */
+        .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 15px; display: inline-block; max-width: 80%; }
+        .my-msg { background: #0084ff; color: white; float: right; clear: both; }
+        .other-msg { background: #e4e6eb; color: black; float: left; clear: both; }
+        .clearfix::after { content: ""; display: table; clear: both; }
+
+        /* 入力エリア */
+        .input-group { display: flex; gap: 10px; }
+        input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
+        button { padding: 10px 20px; border-radius: 20px; border: none; background: #0084ff; color: white; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0073e6; }
+    </style>
+</head>
+<body>
+
+    <h2>チャット</h2>
+    
+    <!-- チャット表示エリア -->
+    <div id="chat-area">
+        <!-- ここにメッセージが追加されます -->
+    </div>
+
+    <!-- 入力エリア -->
+    <div class="input-group">
+        <input type="text" id="msg-input" placeholder="メッセージを入力...">
+        <button id="send-btn">送信</button>
+    </div>
+
+    <!-- Firebase SDKの読み込み (バージョン9系) -->
+    <script type="module">
+        // ---------------------------------------------------------
+        // ▼▼▼ ここにFirebaseの設定を貼り付けます ▼▼▼
+        // ---------------------------------------------------------
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } 
+        from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        // あなたの firebaseConfig に書き換えてください
+const firebaseConfig = {
+
+  apiKey: "AIzaSyD-ZjLNRLuQt5H_cEjIW7pz2sqb7_fOXIc",
+
+  authDomain: "my-chat-web-dd1e0.firebaseapp.com",
+
+  projectId: "my-chat-web-dd1e0",
+
+  storageBucket: "my-chat-web-dd1e0.firebasestorage.app",
+
+  messagingSenderId: "305254951478",
+
+  appId: "1:305254951478:web:2e53276498acd388e14697",
+
+  measurementId: "G-M84CV53JEK"
+
+};
+
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+        // Firebaseの初期化
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // HTML要素の取得
+        const chatArea = document.getElementById("chat-area");
+        const msgInput = document.getElementById("msg-input");
+        const sendBtn = document.getElementById("send-btn");
+
+        // 自分のIDを適当に作る（自分のメッセージを右側に表示するため）
+        const myId = localStorage.getItem('myId') || Math.random().toString(36).substring(7);
+        localStorage.setItem('myId', myId);
+
+        // 送信処理
+        async function sendMessage() {
+            const text = msgInput.value;
+            if (text.trim() === "") return;
+
+            try {
+                // Firestoreにデータを保存
+                await addDoc(collection(db, "messages"), {
+                    text: text,
+                    senderId: myId,
+                    createdAt: serverTimestamp() // サーバー側の日時
+                });
+                msgInput.value = ""; // 入力欄を空にする
+            } catch (e) {
+                console.error("送信エラー: ", e);
+            }
+        }
+
+        // ボタンクリックとEnterキーで送信
+        sendBtn.addEventListener("click", sendMessage);
+        msgInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") sendMessage();
+        });
+
+        // リアルタイム受信処理
+        // "messages" コレクションを "createdAt" 順に並べ替えて監視
+        const q = query(collection(db, "messages"), orderBy("createdAt", "asc"));
+        
+        onSnapshot(q, (snapshot) => {
+            chatArea.innerHTML = ""; // 一回クリア（簡易実装のため）
+            
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                const div = document.createElement("div");
+                div.textContent = data.text;
+                div.classList.add("message");
+                
+                // 自分のメッセージか相手のか判定
+                if (data.senderId === myId) {
+                    div.classList.add("my-msg");
+                } else {
+                    div.classList.add("other-msg");
+                }
+
+                // スクロール調整用のラッパー
+                const wrapper = document.createElement("div");
+                wrapper.classList.add("clearfix");
+                wrapper.appendChild(div);
+                
+                chatArea.appendChild(wrapper);
+            });
+            
+            // 一番下までスクロール
+            chatArea.scrollTop = chatArea.scrollHeight;
+        });
+
+    </script>
+</body>
+</html>
