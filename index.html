@@ -3,61 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>なかつるきめえ</title>
+    <!-- AIと検索エンジンへの拒否設定 -->
+    <meta name="robots" content="noindex, nofollow, noarchive">
+    <meta name="googlebot" content="noindex, nofollow">
+    <!-- タイトルも業務ツールっぽくする -->
+    <title>System Log Viewer 1.0</title>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f0f2f5; }
-        h2 { text-align: center; color: #333; }
+        body { font-family: 'Courier New', monospace; max-width: 600px; margin: 0 auto; padding: 20px; background: #222; color: #ddd; }
+        h2 { text-align: left; font-size: 1rem; color: #888; border-bottom: 1px solid #444; padding-bottom: 10px; }
         
-        /* チャットエリア */
-        #chat-area {
+        /* 難読化されたコンテナ（旧チャットエリア） */
+        #sys-mon-disp {
             height: 400px;
             overflow-y: auto;
-            border: 1px solid #ddd;
-            background: white;
+            border: 1px solid #444;
+            background: #1a1a1a;
             padding: 10px;
             margin-bottom: 10px;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 0.9rem;
         }
         
-        /* メッセージのスタイル */
-        .message { margin-bottom: 10px; padding: 8px 12px; border-radius: 15px; display: inline-block; max-width: 80%; }
-        .my-msg { background: #0084ff; color: white; float: right; clear: both; }
-        .other-msg { background: #e4e6eb; color: black; float: left; clear: both; }
-        .clearfix::after { content: ""; display: table; clear: both; }
+        /* 難読化されたアイテム（旧メッセージ） */
+        .log-row { margin-bottom: 5px; padding: 5px 10px; border-left: 3px solid transparent; display: block; }
+        
+        /* 自分（Type A）と相手（Type B）の見た目をログっぽくする */
+        /* 右寄せ・左寄せをやめ、色だけで区別することでチャット構造を隠す */
+        .type-a { border-left-color: #00ff00; background: #002200; color: #aaffaa; }
+        .type-b { border-left-color: #ffff00; background: #222200; color: #ffffaa; }
 
-        /* 入力エリア */
-        .input-group { display: flex; gap: 10px; }
-        input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; outline: none; }
-        button { padding: 10px 20px; border-radius: 20px; border: none; background: #0084ff; color: white; cursor: pointer; font-weight: bold; }
-        button:hover { background: #0073e6; }
+        /* 入力エリアの擬態 */
+        .cmd-line { display: flex; gap: 5px; background: #333; padding: 5px; }
+        input { flex: 1; padding: 8px; background: #111; border: 1px solid #555; color: #fff; font-family: monospace; outline: none; }
+        button { padding: 8px 15px; border: 1px solid #555; background: #444; color: #ccc; cursor: pointer; font-family: monospace; }
+        button:hover { background: #555; }
     </style>
 </head>
 <body>
 
-    <h2>チャット</h2>
+    <!-- 業務ツールのような見た目 -->
+    <h2>>_ System Activity Log</h2>
     
-    <!-- チャット表示エリア -->
-    <div id="chat-area">
-        <!-- ここにメッセージが追加されます -->
+    <div id="sys-mon-disp">
+        <!-- データ表示エリア -->
     </div>
 
-    <!-- 入力エリア -->
-    <div class="input-group">
-        <input type="text" id="msg-input" placeholder="メッセージを入力...">
-        <button id="send-btn">送信</button>
+    <div class="cmd-line">
+        <input type="text" id="val-in" placeholder="Enter value..." autocomplete="off">
+        <button id="exec-btn">EXEC</button>
     </div>
 
-    <!-- Firebase SDKの読み込み (バージョン9系) -->
     <script type="module">
-        // ---------------------------------------------------------
-        // ▼▼▼ ここにFirebaseの設定を貼り付けます ▼▼▼
-        // ---------------------------------------------------------
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
         import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } 
         from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-        // あなたの firebaseConfig に書き換えてください
+        // ▼▼▼ ここにご自身のキーを貼り付けてください ▼▼▼
 const firebaseConfig = {
 
   apiKey: "AIzaSyD-ZjLNRLuQt5H_cEjIW7pz2sqb7_fOXIc",
@@ -76,77 +76,65 @@ const firebaseConfig = {
 
 };
 
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
-        // Firebaseの初期化
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // HTML要素の取得
-        const chatArea = document.getElementById("chat-area");
-        const msgInput = document.getElementById("msg-input");
-        const sendBtn = document.getElementById("send-btn");
+        // 変数名も難読化（area -> display, input -> value）
+        const disp = document.getElementById("sys-mon-disp");
+        const valIn = document.getElementById("val-in");
+        const execBtn = document.getElementById("exec-btn");
 
-        // 自分のIDを適当に作る（自分のメッセージを右側に表示するため）
-        const myId = localStorage.getItem('myId') || Math.random().toString(36).substring(7);
-        localStorage.setItem('myId', myId);
+        const uid = localStorage.getItem('sys_uid') || Math.random().toString(36).substring(7);
+        localStorage.setItem('sys_uid', uid);
 
-        // 送信処理
-        async function sendMessage() {
-            const text = msgInput.value;
-            if (text.trim() === "") return;
+        async function pushData() {
+            const rawVal = valIn.value;
+            if (rawVal.trim() === "") return;
 
             try {
-                // Firestoreにデータを保存
-                await addDoc(collection(db, "messages"), {
-                    text: text,
-                    senderId: myId,
-                    createdAt: serverTimestamp() // サーバー側の日時
+                // コレクション名を "messages" から "system_logs" に変更して隠蔽
+                await addDoc(collection(db, "system_logs"), {
+                    payload: rawVal, // text -> payload
+                    source: uid,     // senderId -> source
+                    ts: serverTimestamp() // createdAt -> ts
                 });
-                msgInput.value = ""; // 入力欄を空にする
+                valIn.value = "";
             } catch (e) {
-                console.error("送信エラー: ", e);
+                console.error("Log error: ", e);
             }
         }
 
-        // ボタンクリックとEnterキーで送信
-        sendBtn.addEventListener("click", sendMessage);
-        msgInput.addEventListener("keypress", (e) => {
-            if (e.key === "Enter") sendMessage();
+        execBtn.addEventListener("click", pushData);
+        valIn.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") pushData();
         });
 
-        // リアルタイム受信処理
-        // "messages" コレクションを "createdAt" 順に並べ替えて監視
-        const q = query(collection(db, "messages"), orderBy("createdAt", "asc"));
+        const q = query(collection(db, "system_logs"), orderBy("ts", "asc"));
         
         onSnapshot(q, (snapshot) => {
-            chatArea.innerHTML = ""; // 一回クリア（簡易実装のため）
+            disp.innerHTML = "";
             
             snapshot.forEach((doc) => {
                 const data = doc.data();
-                const div = document.createElement("div");
-                div.textContent = data.text;
-                div.classList.add("message");
+                const el = document.createElement("div");
                 
-                // 自分のメッセージか相手のか判定
-                if (data.senderId === myId) {
-                    div.classList.add("my-msg");
+                // チャットの吹き出しではなく「システムログの1行」として表示
+                el.textContent = `[LOG] ${data.payload}`; 
+                el.classList.add("log-row");
+                
+                if (data.source === uid) {
+                    el.classList.add("type-a");
                 } else {
-                    div.classList.add("other-msg");
+                    el.classList.add("type-b");
                 }
-
-                // スクロール調整用のラッパー
-                const wrapper = document.createElement("div");
-                wrapper.classList.add("clearfix");
-                wrapper.appendChild(div);
                 
-                chatArea.appendChild(wrapper);
+                disp.appendChild(el);
             });
             
-            // 一番下までスクロール
-            chatArea.scrollTop = chatArea.scrollHeight;
+            disp.scrollTop = disp.scrollHeight;
         });
-
     </script>
 </body>
 </html>
